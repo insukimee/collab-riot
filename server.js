@@ -125,9 +125,7 @@ io.on('connection', (socket) => {
       spyWord: null,
       chameleonId: null,
       votes: {},
-      midVotes: {},
-      voteRound: 0, // 0=없음, 1=중간투표, 2=본투표1차, 3=본투표2차
-      bonVoteCounts: {}, // 본투표 합산
+      hints: {}, // playerId → hintText
       usedWords: [],
     };
     socket.join(roomId);
@@ -163,17 +161,33 @@ io.on('connection', (socket) => {
     startRound(socket.roomId);
   });
 
+  socket.on('submitHint', ({ hint }) => {
+    const room = rooms[socket.roomId];
+    if (!room || room.phase !== 'hintPhase') return;
+    if (room.hints[socket.id]) return; // 이미 제출
+    const text = String(hint).trim().slice(0, 30);
+    if (!text) return;
+    room.hints[socket.id] = text;
+    io.to(socket.roomId).emit('hintSubmitted', {
+      playerId: socket.id,
+      playerName: socket.playerName,
+      hint: text,
+      submittedCount: Object.keys(room.hints).length,
+      total: room.players.length,
+    });
+    if (Object.keys(room.hints).length >= room.players.length) {
+      startDeliberation(socket.roomId);
+    }
+  });
+
   socket.on('vote', ({ targetId }) => {
     const room = rooms[socket.roomId];
-    const votingPhases = ['midVoting', 'bonVoting1', 'bonVoting2'];
-    if (!room || !votingPhases.includes(room.phase)) return;
+    if (!room || room.phase !== 'voting') return;
     if (socket.id === targetId) return socket.emit('error', '자기 자신에게 투표할 수 없습니다.');
     room.votes[socket.id] = targetId;
     io.to(socket.roomId).emit('voteUpdate', { votedCount: Object.keys(room.votes).length, total: room.players.length });
     if (Object.keys(room.votes).length >= room.players.length) {
-      if (room.phase === 'midVoting') resolveMidVoting(socket.roomId);
-      else if (room.phase === 'bonVoting1') resolveBonVoting1(socket.roomId);
-      else if (room.phase === 'bonVoting2') resolveBonVoting2(socket.roomId);
+      resolveVoting(socket.roomId);
     }
   });
 
@@ -261,8 +275,8 @@ function startRound(roomId) {
   room.word = real;
   room.spyWord = spy;
   room.votes = {};
-  room.bonVoteCounts = {};
-  room.phase = 'discussion';
+  room.hints = {};
+  room.phase = 'hintPhase';
 
   const playerIds = room.players.map(p => p.id);
   room.chameleonId = playerIds[Math.floor(Math.random() * playerIds.length)];
@@ -276,78 +290,34 @@ function startRound(roomId) {
   });
 
   io.to(roomId).emit('gameState', getRoomState(roomId));
-  io.to(roomId).emit('chat', { system: true, text: `🎯 라운드 ${room.round} 시작!` });
+  io.to(roomId).emit('chat', { system: true, text: `🎯 라운드 ${room.round} 시작! 각자 힌트를 한 번씩 제출하세요.` });
+}
+
+function startDeliberation(roomId) {
+  const room = rooms[roomId];
+  room.phase = 'deliberation';
+  io.to(roomId).emit('gameState', getRoomState(roomId));
+  io.to(roomId).emit('chat', { system: true, text: '💬 힌트 제출 완료! 1분간 자유롭게 토론하세요.' });
 
   setTimeout(() => {
-    if (rooms[roomId] && rooms[roomId].phase === 'discussion') startVoting(roomId);
+    if (!rooms[roomId] || rooms[roomId].phase !== 'deliberation') return;
+    startVoting(roomId);
   }, 60000);
 }
 
 function startVoting(roomId) {
-  // 중간 투표 시작
   const room = rooms[roomId];
-  room.phase = 'midVoting';
+  room.phase = 'voting';
   room.votes = {};
-  room.bonVoteCounts = {};
   io.to(roomId).emit('gameState', getRoomState(roomId));
-  io.to(roomId).emit('chat', { system: true, text: '🗳️ 중간 투표! 결과만 공개되고 탈락은 없어요.' });
+  io.to(roomId).emit('chat', { system: true, text: '🗳️ 본투표! 라이엇이 누구인지 지목하세요.' });
 }
 
-function resolveMidVoting(roomId) {
+function resolveVoting(roomId) {
   const room = rooms[roomId];
   const voteCounts = {};
   Object.values(room.votes).forEach(id => { voteCounts[id] = (voteCounts[id] || 0) + 1; });
 
-  // 중간 투표 결과 공개 (탈락 없음)
-  io.to(roomId).emit('midVoteResult', {
-    votes: Object.entries(voteCounts).map(([id, count]) => ({
-      name: room.players.find(p => p.id === id)?.name,
-      count,
-    })).sort((a, b) => b.count - a.count),
-  });
-
-  // 10초 후 본투표 1차 시작
-  setTimeout(() => {
-    if (!rooms[roomId]) return;
-    room.phase = 'bonVoting1';
-    room.votes = {};
-    io.to(roomId).emit('gameState', getRoomState(roomId));
-    io.to(roomId).emit('chat', { system: true, text: '🗳️ 본투표 1차! 라이엇을 지목하세요.' });
-  }, 10000);
-}
-
-function resolveBonVoting1(roomId) {
-  const room = rooms[roomId];
-  // 1차 표 합산에 저장
-  Object.values(room.votes).forEach(id => {
-    room.bonVoteCounts[id] = (room.bonVoteCounts[id] || 0) + 1;
-  });
-
-  io.to(roomId).emit('bonVote1Result', {
-    votes: Object.entries(room.bonVoteCounts).map(([id, count]) => ({
-      name: room.players.find(p => p.id === id)?.name,
-      count,
-    })).sort((a, b) => b.count - a.count),
-  });
-
-  // 3초 후 본투표 2차 시작
-  setTimeout(() => {
-    if (!rooms[roomId]) return;
-    room.phase = 'bonVoting2';
-    room.votes = {};
-    io.to(roomId).emit('gameState', getRoomState(roomId));
-    io.to(roomId).emit('chat', { system: true, text: '🗳️ 본투표 2차! 최종 지목하세요.' });
-  }, 3000);
-}
-
-function resolveBonVoting2(roomId) {
-  const room = rooms[roomId];
-  // 2차 표 합산
-  Object.values(room.votes).forEach(id => {
-    room.bonVoteCounts[id] = (room.bonVoteCounts[id] || 0) + 1;
-  });
-
-  const voteCounts = room.bonVoteCounts;
   const maxVotes = Math.max(...Object.values(voteCounts));
   const topVoted = Object.entries(voteCounts).filter(([, v]) => v === maxVotes).map(([k]) => k);
   const eliminated = topVoted.length === 1 ? topVoted[0] : null;

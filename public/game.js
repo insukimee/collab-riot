@@ -236,10 +236,9 @@ socket.on('gameState', (state) => {
     if (!document.getElementById('screen-game').classList.contains('active')) {
       showScreen('game');
     }
-    if (state.phase === 'discussion') startDiscussionUI();
-    else if (state.phase === 'midVoting') startVotingUI(state, 'mid');
-    else if (state.phase === 'bonVoting1') startVotingUI(state, 'bon1');
-    else if (state.phase === 'bonVoting2') startVotingUI(state, 'bon2');
+    if (state.phase === 'hintPhase') startHintPhaseUI(state);
+    else if (state.phase === 'deliberation') startDeliberationUI(state);
+    else if (state.phase === 'voting') startVotingUI(state);
     else if (state.phase === 'chameleonGuess') startGuessUI();
   }
 });
@@ -339,34 +338,89 @@ socket.on('roundStart', ({ round, maxRounds, category, isSpy: ic, myWord: word }
   showScreen('game');
   setHostLine('roundStart');
 
-  // 3초 후 바로 토론 단계 표시
-  setTimeout(() => {
-    startDiscussionUI();
-  }, 3000);
+  // 3초 후 힌트 제출 단계로
+  setTimeout(() => startHintPhaseUI(gameState), 3000);
 });
 
-/* ─── 토론 ─── */
-function startDiscussionUI() {
-  ['phaseVoting','phaseGuess'].forEach(id => document.getElementById(id).classList.add('hidden'));
+/* ─── 힌트 제출 단계 ─── */
+let hintSubmitted = false;
+
+function startHintPhaseUI(state) {
+  clearInterval(timerInterval);
+  hintSubmitted = false;
+  ['phaseVoting','phaseGuess','phaseDiscussion'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.classList.add('hidden');
+  });
   document.getElementById('phaseDiscussion').classList.remove('hidden');
   setHostLine('discussion');
 
-  // 참여자 단어 카드 (내 단어만 표시, 남의 단어는 비밀)
+  const src = state || gameState;
   const pCards = document.getElementById('playerWordCards');
   if (pCards) {
     pCards.innerHTML = `
-      <div class="my-word-badge">
-        내 단어: <strong>${myWord}</strong>
+      <div class="my-word-badge">내 단어: <strong>${myWord}</strong></div>
+      <div class="hint-submit-area">
+        <input id="hintInput" type="text" maxlength="30" placeholder="단어와 관련된 힌트 한 줄..." />
+        <button class="riot-btn accent sm" onclick="submitHint()">제출</button>
       </div>
+      <div id="hintList" class="hint-list"></div>
     `;
   }
+
+  // 타이머 숨김
+  const timerEl = document.querySelector('.timer-wrap');
+  if (timerEl) timerEl.style.display = 'none';
+
+  document.getElementById('timerNum').textContent = '—';
+}
+
+function submitHint() {
+  if (hintSubmitted) return;
+  const input = document.getElementById('hintInput');
+  const hint = input?.value.trim();
+  if (!hint) return;
+  hintSubmitted = true;
+  input.disabled = true;
+  document.querySelector('.hint-submit-area button').disabled = true;
+  socket.emit('submitHint', { hint });
+}
+
+socket.on('hintSubmitted', ({ playerId, playerName, hint, submittedCount, total }) => {
+  const list = document.getElementById('hintList');
+  if (!list) return;
+
+  // 이미 있으면 업데이트, 없으면 추가
+  let row = document.getElementById(`hint-row-${playerId}`);
+  if (!row) {
+    row = document.createElement('div');
+    row.id = `hint-row-${playerId}`;
+    row.className = 'hint-row';
+    list.appendChild(row);
+  }
+  row.innerHTML = `<span class="hint-player">${playerName}</span><span class="hint-text">${hint}</span>`;
+
+  // 제출 현황 업데이트
+  const badge = document.getElementById('hintProgressBadge');
+  if (badge) badge.textContent = `${submittedCount} / ${total} 제출`;
+});
+
+/* ─── 숙려 단계 (1분 타이머) ─── */
+function startDeliberationUI(state) {
+  clearInterval(timerInterval);
+  setHostLine('discussion');
+
+  document.getElementById('discussionTitle').textContent = '💬 자유 토론!';
+  document.getElementById('discussionSub').textContent = '힌트를 보고 1분 동안 라이엇을 찾아내세요!';
+
+  // 타이머 표시
+  const timerEl = document.querySelector('.timer-wrap');
+  if (timerEl) timerEl.style.display = '';
 
   let sec = 60;
   const circle = document.getElementById('timerCircle');
   const num = document.getElementById('timerNum');
   const circumference = 339.3;
-
-  clearInterval(timerInterval);
+  circle.style.stroke = 'var(--teal)';
   circle.style.strokeDashoffset = '0';
   num.textContent = sec;
 
@@ -380,23 +434,16 @@ function startDiscussionUI() {
 }
 
 /* ─── 투표 ─── */
-const VOTE_LABELS = { mid: '🗳️ 중간 투표', bon1: '🗳️ 본투표 1차', bon2: '🗳️ 본투표 2차' };
-
-function startVotingUI(state, voteType) {
+function startVotingUI(state) {
   clearInterval(timerInterval);
   myVote = null;
-  ['phaseDiscussion','phaseGuess'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  ['phaseDiscussion','phaseGuess'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
   document.getElementById('phaseVoting').classList.remove('hidden');
   document.getElementById('voteStatus').classList.add('hidden');
   setHostLine('voting');
 
-  const label = VOTE_LABELS[voteType] || '🗳️ 투표';
-  const subText = voteType === 'mid'
-    ? '결과만 공개 — 탈락 없음'
-    : voteType === 'bon1' ? '본투표 1차 / 2차' : '본투표 2차 / 2차 (최종)';
-
-  document.getElementById('voteTitle').textContent = label;
-  document.getElementById('voteSubtitle').textContent = subText;
+  document.getElementById('voteTitle').textContent = '🗳️ 본투표';
+  document.getElementById('voteSubtitle').textContent = '라이엇이 누구인지 지목하세요!';
 
   const src = state || gameState;
   const others = (src?.players || []).filter(p => p.id !== socket.id);
@@ -514,9 +561,11 @@ socket.on('chameleonGuessResult', ({ guess, correct, actualWord, chameleonName }
 
 /* ─── 라운드 종료 ─── */
 socket.on('roundEnd', ({ chameleonName, citizenWord, spyWord, myRole, scores, isGameOver, currentRound, maxRounds }) => {
-  setTimeout(() => {
-    const overlay = document.getElementById('resultOverlay');
-    const amSpy = myRole === 'spy';
+  const overlay = document.getElementById('resultOverlay');
+  const amSpy = myRole === 'spy';
+  // 오버레이를 즉시 표시 (gameState lobby보다 먼저 처리되도록)
+  overlay.classList.remove('hidden');
+  (() => {
     const revealMsg = amSpy
       ? `<p style="color:#ff6b6b;font-weight:700;margin:.25rem 0 0">나는 라이엇이었다!</p><p style="color:var(--text);font-size:.85rem;margin:.25rem 0 .5rem">시민들의 단어는 <strong style="color:var(--gold)">${citizenWord}</strong> 였습니다</p>`
       : `<p style="color:#4ecdc4;font-weight:700;margin:.25rem 0 0">나는 시민이었다!</p><p style="color:var(--text);font-size:.85rem;margin:.25rem 0 .5rem">라이엇의 단어는 <strong style="color:#ff6b6b">${spyWord}</strong> 였습니다</p>`;
@@ -559,13 +608,12 @@ socket.on('roundEnd', ({ chameleonName, citizenWord, spyWord, myRole, scores, is
         <p id="revealWaitMsg" style="color:var(--text);margin-top:1rem;font-size:.82rem">방장이 다음 라운드를 시작할 때까지 대기 중...</p>
       `}
     `;
-    overlay.classList.remove('hidden');
     // 방장이면 버튼 즉시 표시
     const hostBtn = document.getElementById('revealNextBtn');
     if (hostBtn) hostBtn.style.display = isHost ? 'block' : 'none';
     const waitMsg = document.getElementById('revealWaitMsg');
     if (waitMsg) waitMsg.style.display = isHost ? 'none' : 'block';
-  }, 600);
+  })();
 });
 
 /* ─── 게임 오버 ─── */

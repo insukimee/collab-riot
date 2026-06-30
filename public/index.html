@@ -164,11 +164,12 @@
           <!-- 토론 단계 -->
           <div id="phaseDiscussion" class="phase hidden">
             <div class="discussion-panel">
-              <div class="disc-icon">🗣️</div>
-              <h2>자유 토론!</h2>
-              <p>받은 단어로 서로 힌트를 주고받으며 라이엇을 찾아내세요!</p>
+              <div class="disc-icon">✏️</div>
+              <h2 id="discussionTitle">힌트 제출!</h2>
+              <p id="discussionSub">단어와 관련된 힌트를 딱 한 번 제출하세요.</p>
+              <span id="hintProgressBadge" class="hint-progress-badge">0 / 0 제출</span>
               <div id="playerWordCards" class="player-word-cards"></div>
-              <div class="timer-wrap">
+              <div class="timer-wrap" style="display:none">
                 <svg class="timer-svg" viewBox="0 0 120 120">
                   <circle cx="60" cy="60" r="54" fill="none" stroke="#1a1f2e" stroke-width="8"/>
                   <circle id="timerCircle" cx="60" cy="60" r="54" fill="none" stroke="#C89B3C" stroke-width="8"
