@@ -476,44 +476,24 @@ function makeVoteRows(votes) {
   `).join('');
 }
 
-/* 중간 투표 결과 (탈락 없음, 10초 후 본투표1차 자동 시작) */
-socket.on('midVoteResult', ({ votes }) => {
+/* 오버레이 타이머 관리 — roundEnd가 덮어써야 할 때 취소 가능 */
+let overlayAutoHideTimer = null;
+function showOverlayTemp(html, ms) {
   const overlay = document.getElementById('resultOverlay');
-  document.getElementById('resultContent').innerHTML = `
-    <div style="font-size:2.5rem;margin-bottom:.5rem">🗳️</div>
-    <h2 style="color:var(--gold)">중간 투표 결과</h2>
-    <p style="color:var(--text);font-size:.85rem;margin:.5rem 0 1rem">탈락 없음 — 10초 후 본투표 시작</p>
-    ${makeVoteRows(votes)}
-  `;
+  document.getElementById('resultContent').innerHTML = html;
   overlay.classList.remove('hidden');
-  setTimeout(() => overlay.classList.add('hidden'), 10000);
-});
-
-/* 본투표 1차 결과 (3초 후 2차 자동 시작) */
-socket.on('bonVote1Result', ({ votes }) => {
-  const overlay = document.getElementById('resultOverlay');
-  document.getElementById('resultContent').innerHTML = `
-    <div style="font-size:2.5rem;margin-bottom:.5rem">🗳️</div>
-    <h2 style="color:var(--gold)">본투표 1차 현황</h2>
-    <p style="color:var(--text);font-size:.85rem;margin:.5rem 0 1rem">잠시 후 2차 투표 시작</p>
-    ${makeVoteRows(votes)}
-  `;
-  overlay.classList.remove('hidden');
-  setTimeout(() => overlay.classList.add('hidden'), 3000);
-});
+  clearTimeout(overlayAutoHideTimer);
+  overlayAutoHideTimer = setTimeout(() => overlay.classList.add('hidden'), ms);
+}
 
 /* ─── 최종 투표 결과 ─── */
 socket.on('voteResult', ({ eliminated, isChameleon: ic, votes }) => {
-  const overlay = document.getElementById('resultOverlay');
-  document.getElementById('resultContent').innerHTML = `
+  showOverlayTemp(`
     <div style="font-size:3rem;margin-bottom:.5rem">${ic ? '🎯' : '😅'}</div>
     <h2>${ic ? 'SPY 발각!' : 'SPY 생존!'}</h2>
-    <p style="color:var(--text);margin:.75rem 0">최종 지목: <strong style="color:var(--text-b)">${eliminated}</strong></p>
-    <p style="color:var(--text);font-size:.8rem;margin-bottom:.75rem">(본투표 1·2차 합산)</p>
+    <p style="color:var(--text);margin:.75rem 0">지목: <strong style="color:var(--text-b)">${eliminated}</strong></p>
     ${makeVoteRows(votes)}
-  `;
-  overlay.classList.remove('hidden');
-  setTimeout(() => overlay.classList.add('hidden'), 3500);
+  `, 3000);
 
   if (ic) setHostLine('spyCaught');
 });
@@ -561,9 +541,10 @@ socket.on('chameleonGuessResult', ({ guess, correct, actualWord, chameleonName }
 
 /* ─── 라운드 종료 ─── */
 socket.on('roundEnd', ({ chameleonName, citizenWord, spyWord, myRole, scores, isGameOver, currentRound, maxRounds }) => {
+  // voteResult 자동 숨김 타이머 취소 — roundEnd 오버레이가 덮어씀
+  clearTimeout(overlayAutoHideTimer);
   const overlay = document.getElementById('resultOverlay');
   const amSpy = myRole === 'spy';
-  // 오버레이를 즉시 표시 (gameState lobby보다 먼저 처리되도록)
   overlay.classList.remove('hidden');
   (() => {
     const revealMsg = amSpy
