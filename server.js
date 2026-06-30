@@ -125,6 +125,9 @@ io.on('connection', (socket) => {
       spyWord: null,
       chameleonId: null,
       votes: {},
+      midVotes: {},
+      voteRound: 0, // 0=없음, 1=중간투표, 2=본투표1차, 3=본투표2차
+      bonVoteCounts: {}, // 본투표 합산
       usedWords: [],
     };
     socket.join(roomId);
@@ -162,11 +165,16 @@ io.on('connection', (socket) => {
 
   socket.on('vote', ({ targetId }) => {
     const room = rooms[socket.roomId];
-    if (!room || room.phase !== 'voting') return;
+    const votingPhases = ['midVoting', 'bonVoting1', 'bonVoting2'];
+    if (!room || !votingPhases.includes(room.phase)) return;
     if (socket.id === targetId) return socket.emit('error', '자기 자신에게 투표할 수 없습니다.');
     room.votes[socket.id] = targetId;
     io.to(socket.roomId).emit('voteUpdate', { votedCount: Object.keys(room.votes).length, total: room.players.length });
-    if (Object.keys(room.votes).length >= room.players.length) resolveVoting(socket.roomId);
+    if (Object.keys(room.votes).length >= room.players.length) {
+      if (room.phase === 'midVoting') resolveMidVoting(socket.roomId);
+      else if (room.phase === 'bonVoting1') resolveBonVoting1(socket.roomId);
+      else if (room.phase === 'bonVoting2') resolveBonVoting2(socket.roomId);
+    }
   });
 
   socket.on('chameleonGuess', ({ guess }) => {
@@ -247,6 +255,7 @@ function startRound(roomId) {
   room.word = real;
   room.spyWord = spy;
   room.votes = {};
+  room.bonVoteCounts = {};
   room.phase = 'discussion';
 
   const playerIds = room.players.map(p => p.id);
@@ -269,20 +278,72 @@ function startRound(roomId) {
 }
 
 function startVoting(roomId) {
+  // 중간 투표 시작
   const room = rooms[roomId];
-  room.phase = 'voting';
+  room.phase = 'midVoting';
   room.votes = {};
+  room.bonVoteCounts = {};
   io.to(roomId).emit('gameState', getRoomState(roomId));
-  io.to(roomId).emit('chat', { system: true, text: '🗳️ 투표 시작! 라이엇이 누구라고 생각하세요?' });
+  io.to(roomId).emit('chat', { system: true, text: '🗳️ 중간 투표! 결과만 공개되고 탈락은 없어요.' });
 }
 
-function resolveVoting(roomId) {
+function resolveMidVoting(roomId) {
   const room = rooms[roomId];
   const voteCounts = {};
   Object.values(room.votes).forEach(id => { voteCounts[id] = (voteCounts[id] || 0) + 1; });
+
+  // 중간 투표 결과 공개 (탈락 없음)
+  io.to(roomId).emit('midVoteResult', {
+    votes: Object.entries(voteCounts).map(([id, count]) => ({
+      name: room.players.find(p => p.id === id)?.name,
+      count,
+    })).sort((a, b) => b.count - a.count),
+  });
+
+  // 3초 후 본투표 1차 시작
+  setTimeout(() => {
+    if (!rooms[roomId]) return;
+    room.phase = 'bonVoting1';
+    room.votes = {};
+    io.to(roomId).emit('gameState', getRoomState(roomId));
+    io.to(roomId).emit('chat', { system: true, text: '🗳️ 본투표 1차! 라이엇을 지목하세요.' });
+  }, 3000);
+}
+
+function resolveBonVoting1(roomId) {
+  const room = rooms[roomId];
+  // 1차 표 합산에 저장
+  Object.values(room.votes).forEach(id => {
+    room.bonVoteCounts[id] = (room.bonVoteCounts[id] || 0) + 1;
+  });
+
+  io.to(roomId).emit('bonVote1Result', {
+    votes: Object.entries(room.bonVoteCounts).map(([id, count]) => ({
+      name: room.players.find(p => p.id === id)?.name,
+      count,
+    })).sort((a, b) => b.count - a.count),
+  });
+
+  // 3초 후 본투표 2차 시작
+  setTimeout(() => {
+    if (!rooms[roomId]) return;
+    room.phase = 'bonVoting2';
+    room.votes = {};
+    io.to(roomId).emit('gameState', getRoomState(roomId));
+    io.to(roomId).emit('chat', { system: true, text: '🗳️ 본투표 2차! 최종 지목하세요.' });
+  }, 3000);
+}
+
+function resolveBonVoting2(roomId) {
+  const room = rooms[roomId];
+  // 2차 표 합산
+  Object.values(room.votes).forEach(id => {
+    room.bonVoteCounts[id] = (room.bonVoteCounts[id] || 0) + 1;
+  });
+
+  const voteCounts = room.bonVoteCounts;
   const maxVotes = Math.max(...Object.values(voteCounts));
   const topVoted = Object.entries(voteCounts).filter(([, v]) => v === maxVotes).map(([k]) => k);
-
   const eliminated = topVoted.length === 1 ? topVoted[0] : null;
   const eliminatedPlayer = eliminated ? room.players.find(p => p.id === eliminated) : null;
   const isChameleon = eliminated === room.chameleonId;
@@ -293,7 +354,7 @@ function resolveVoting(roomId) {
     votes: Object.entries(voteCounts).map(([id, count]) => ({
       name: room.players.find(p => p.id === id)?.name,
       count,
-    })),
+    })).sort((a, b) => b.count - a.count),
   });
 
   if (isChameleon) {

@@ -237,7 +237,9 @@ socket.on('gameState', (state) => {
       showScreen('game');
     }
     if (state.phase === 'discussion') startDiscussionUI();
-    else if (state.phase === 'voting')    startVotingUI(state);
+    else if (state.phase === 'midVoting') startVotingUI(state, 'mid');
+    else if (state.phase === 'bonVoting1') startVotingUI(state, 'bon1');
+    else if (state.phase === 'bonVoting2') startVotingUI(state, 'bon2');
     else if (state.phase === 'chameleonGuess') startGuessUI();
   }
 });
@@ -378,16 +380,27 @@ function startDiscussionUI() {
 }
 
 /* ─── 투표 ─── */
-function startVotingUI(state) {
+const VOTE_LABELS = { mid: '🗳️ 중간 투표', bon1: '🗳️ 본투표 1차', bon2: '🗳️ 본투표 2차' };
+
+function startVotingUI(state, voteType) {
   clearInterval(timerInterval);
+  myVote = null;
   ['phaseDiscussion','phaseGuess'].forEach(id => document.getElementById(id).classList.add('hidden'));
   document.getElementById('phaseVoting').classList.remove('hidden');
   document.getElementById('voteStatus').classList.add('hidden');
   setHostLine('voting');
 
+  const label = VOTE_LABELS[voteType] || '🗳️ 투표';
+  const subText = voteType === 'mid'
+    ? '결과만 공개 — 탈락 없음'
+    : voteType === 'bon1' ? '본투표 1차 / 2차' : '본투표 2차 / 2차 (최종)';
+
+  document.getElementById('voteTitle').textContent = label;
+  document.getElementById('voteSubtitle').textContent = subText;
+
   const src = state || gameState;
   const others = (src?.players || []).filter(p => p.id !== socket.id);
-  document.getElementById('voteGrid').innerHTML = others.map((p, i) => `
+  document.getElementById('voteGrid').innerHTML = others.map((p) => `
     <button class="vote-btn" onclick="castVote('${p.id}', this)">
       ${AVATARS[(src.players.indexOf(p)) % AVATARS.length]} ${p.name}
     </button>
@@ -407,21 +420,50 @@ socket.on('voteUpdate', ({ votedCount, total }) => {
   document.getElementById('voteCount').textContent = `집계 중... ${votedCount} / ${total}`;
 });
 
-/* ─── 투표 결과 ─── */
-socket.on('voteResult', ({ eliminated, isChameleon: ic, votes }) => {
-  const overlay = document.getElementById('resultOverlay');
-  const content = document.getElementById('resultContent');
-  const rows = votes.map(v => `
+function makeVoteRows(votes) {
+  return votes.map(v => `
     <div class="result-score-row">
       <span class="rs-name">${v.name}</span>
       <span class="rs-pts">${v.count}표</span>
     </div>
   `).join('');
-  content.innerHTML = `
+}
+
+/* 중간 투표 결과 (탈락 없음, 3초 후 본투표1차 자동 시작) */
+socket.on('midVoteResult', ({ votes }) => {
+  const overlay = document.getElementById('resultOverlay');
+  document.getElementById('resultContent').innerHTML = `
+    <div style="font-size:2.5rem;margin-bottom:.5rem">🗳️</div>
+    <h2 style="color:var(--gold)">중간 투표 결과</h2>
+    <p style="color:var(--text);font-size:.85rem;margin:.5rem 0 1rem">탈락 없음 — 잠시 후 본투표 시작</p>
+    ${makeVoteRows(votes)}
+  `;
+  overlay.classList.remove('hidden');
+  setTimeout(() => overlay.classList.add('hidden'), 3000);
+});
+
+/* 본투표 1차 결과 (3초 후 2차 자동 시작) */
+socket.on('bonVote1Result', ({ votes }) => {
+  const overlay = document.getElementById('resultOverlay');
+  document.getElementById('resultContent').innerHTML = `
+    <div style="font-size:2.5rem;margin-bottom:.5rem">🗳️</div>
+    <h2 style="color:var(--gold)">본투표 1차 현황</h2>
+    <p style="color:var(--text);font-size:.85rem;margin:.5rem 0 1rem">잠시 후 2차 투표 시작</p>
+    ${makeVoteRows(votes)}
+  `;
+  overlay.classList.remove('hidden');
+  setTimeout(() => overlay.classList.add('hidden'), 3000);
+});
+
+/* ─── 최종 투표 결과 ─── */
+socket.on('voteResult', ({ eliminated, isChameleon: ic, votes }) => {
+  const overlay = document.getElementById('resultOverlay');
+  document.getElementById('resultContent').innerHTML = `
     <div style="font-size:3rem;margin-bottom:.5rem">${ic ? '🎯' : '😅'}</div>
     <h2>${ic ? 'SPY 발각!' : 'SPY 생존!'}</h2>
-    <p style="color:var(--text);margin:.75rem 0">지목: <strong style="color:var(--text-b)">${eliminated}</strong></p>
-    ${rows}
+    <p style="color:var(--text);margin:.75rem 0">최종 지목: <strong style="color:var(--text-b)">${eliminated}</strong></p>
+    <p style="color:var(--text);font-size:.8rem;margin-bottom:.75rem">(본투표 1·2차 합산)</p>
+    ${makeVoteRows(votes)}
   `;
   overlay.classList.remove('hidden');
   setTimeout(() => overlay.classList.add('hidden'), 3500);
@@ -431,7 +473,7 @@ socket.on('voteResult', ({ eliminated, isChameleon: ic, votes }) => {
 
 /* ─── 라이엇 역맞추기 ─── */
 function startGuessUI() {
-  ['phaseDiscussion','phaseVoting'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  ['phaseDiscussion','phaseVoting'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
   document.getElementById('phaseGuess').classList.remove('hidden');
 
   if (isSpy) {
