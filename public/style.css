@@ -147,11 +147,11 @@ input::placeholder { color: rgba(169,180,200,.4); }
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   position: relative;
   background: linear-gradient(to right, rgba(11,196,227,.05) 0%, transparent 100%);
   border-right: 1px solid rgba(11,196,227,.15);
-  padding-bottom: 0;
+  padding: 2rem 1rem;
   overflow: hidden;
 }
 
@@ -161,6 +161,7 @@ input::placeholder { color: rgba(169,180,200,.4); }
   align-items: center;
   width: 100%;
   position: relative;
+  gap: .5rem;
 }
 .lobby-host svg {
   width: 340px;
@@ -212,28 +213,40 @@ input::placeholder { color: rgba(169,180,200,.4); }
   50% { opacity: 1; transform: scale(1.08); }
 }
 
+.host-name-tag {
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--gold);
+  background: rgba(200,155,60,.12);
+  border: 1px solid rgba(200,155,60,.4);
+  border-radius: 20px;
+  padding: .25rem .9rem;
+  text-transform: uppercase;
+}
 .host-speech {
-  position: absolute;
+  position: relative;
   background: var(--card);
   border: 1px solid var(--gold);
-  border-radius: 12px 12px 12px 0;
+  border-radius: 12px;
   box-shadow: var(--glow-g);
   color: var(--text-b);
-  font-size: 0.9rem;
-  line-height: 1.6;
-  max-width: 280px;
-  padding: 1rem 1.2rem;
-  top: 30px;
-  right: -10px;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  width: calc(100% - 2rem);
+  max-width: 320px;
+  padding: .9rem 1.1rem;
+  text-align: center;
   animation: speechPop .5s ease;
 }
 .host-speech::before {
   content: '';
   position: absolute;
-  bottom: -10px;
-  left: 12px;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
   border: 5px solid transparent;
-  border-top-color: var(--gold);
+  border-bottom-color: var(--gold);
 }
 @keyframes speechPop {
   from { opacity: 0; transform: scale(0.85) translateY(8px); }
