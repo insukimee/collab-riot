@@ -222,6 +222,14 @@ socket.on('gameState', (state) => {
 
   if (state.phase === 'lobby') {
     renderLobby(state);
+    // 결과 오버레이가 열려있으면 화면 전환 안 함 (방장이 직접 시작할 때까지 대기)
+    const overlay = document.getElementById('resultOverlay');
+    if (overlay && !overlay.classList.contains('hidden')) {
+      // 방장에게 다음 라운드 시작 버튼 표시
+      const hostBtn = document.getElementById('revealNextBtn');
+      if (hostBtn) hostBtn.style.display = isHost ? 'block' : 'none';
+      return;
+    }
     showScreen('room');
   } else {
     renderGameHUD(state);
@@ -500,12 +508,21 @@ socket.on('roundEnd', ({ chameleonName, citizenWord, spyWord, myRole, scores, is
           <span class="rs-pts">${s.score}점</span>
         </div>
       `).join('')}
-      ${isGameOver ? '' : '<p style="color:var(--text);margin-top:1rem;font-size:.82rem">잠시 후 대기실로 돌아갑니다...</p>'}
+      ${isGameOver ? '' : `
+        <div id="revealNextBtn" style="display:none;margin-top:1rem">
+          <button onclick="hostStartNext()" style="background:var(--gold);color:#0a0e1a;border:none;padding:.7rem 2rem;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;letter-spacing:1px">
+            다음 라운드 시작 ▶
+          </button>
+        </div>
+        <p id="revealWaitMsg" style="color:var(--text);margin-top:1rem;font-size:.82rem">방장이 다음 라운드를 시작할 때까지 대기 중...</p>
+      `}
     `;
     overlay.classList.remove('hidden');
-    if (!isGameOver) {
-      setTimeout(() => overlay.classList.add('hidden'), 7000);
-    }
+    // 방장이면 버튼 즉시 표시
+    const hostBtn = document.getElementById('revealNextBtn');
+    if (hostBtn) hostBtn.style.display = isHost ? 'block' : 'none';
+    const waitMsg = document.getElementById('revealWaitMsg');
+    if (waitMsg) waitMsg.style.display = isHost ? 'none' : 'block';
   }, 600);
 });
 
@@ -522,6 +539,12 @@ socket.on('gameOver', ({ scores }) => {
   setHostLine('gameOver');
   showScreen('gameover');
 });
+
+function hostStartNext() {
+  document.getElementById('resultOverlay').classList.add('hidden');
+  showScreen('room');
+  socket.emit('startGame');
+}
 
 function leaveRoom() {
   if (!confirm('방을 나가시겠어요?')) return;

@@ -351,13 +351,11 @@ function endRound(roomId) {
       }, 8000);
     }, 3000);
   } else {
-    // 라운드 사이: 대기실로 복귀, 방장이 다음 라운드 시작
-    setTimeout(() => {
-      if (!rooms[roomId]) return;
-      room.phase = 'lobby';
-      io.to(roomId).emit('gameState', getRoomState(roomId));
-      io.to(roomId).emit('chat', { system: true, text: `✅ 라운드 ${room.round} 종료! 방장이 다음 라운드를 시작해주세요.` });
-    }, 5000);
+    // 라운드 사이: 즉시 로비로 설정 (방장이 직접 다음 라운드 시작)
+    if (!rooms[roomId]) return;
+    room.phase = 'lobby';
+    io.to(roomId).emit('gameState', getRoomState(roomId));
+    io.to(roomId).emit('chat', { system: true, text: `✅ 라운드 ${room.round} 종료! 방장이 다음 라운드를 시작해주세요.` });
   }
 }
 
