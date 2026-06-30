@@ -338,6 +338,7 @@ input::placeholder { color: rgba(169,180,200,.4); }
   justify-content: center;
   align-items: flex-start;
   padding: 2rem;
+  overflow-y: auto;
 }
 #screen-room.active { display: flex; }
 
