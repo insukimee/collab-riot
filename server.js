@@ -300,14 +300,14 @@ function resolveMidVoting(roomId) {
     })).sort((a, b) => b.count - a.count),
   });
 
-  // 3초 후 본투표 1차 시작
+  // 10초 후 본투표 1차 시작
   setTimeout(() => {
     if (!rooms[roomId]) return;
     room.phase = 'bonVoting1';
     room.votes = {};
     io.to(roomId).emit('gameState', getRoomState(roomId));
     io.to(roomId).emit('chat', { system: true, text: '🗳️ 본투표 1차! 라이엇을 지목하세요.' });
-  }, 3000);
+  }, 10000);
 }
 
 function resolveBonVoting1(roomId) {

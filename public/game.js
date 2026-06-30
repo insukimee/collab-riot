@@ -429,17 +429,17 @@ function makeVoteRows(votes) {
   `).join('');
 }
 
-/* 중간 투표 결과 (탈락 없음, 3초 후 본투표1차 자동 시작) */
+/* 중간 투표 결과 (탈락 없음, 10초 후 본투표1차 자동 시작) */
 socket.on('midVoteResult', ({ votes }) => {
   const overlay = document.getElementById('resultOverlay');
   document.getElementById('resultContent').innerHTML = `
     <div style="font-size:2.5rem;margin-bottom:.5rem">🗳️</div>
     <h2 style="color:var(--gold)">중간 투표 결과</h2>
-    <p style="color:var(--text);font-size:.85rem;margin:.5rem 0 1rem">탈락 없음 — 잠시 후 본투표 시작</p>
+    <p style="color:var(--text);font-size:.85rem;margin:.5rem 0 1rem">탈락 없음 — 10초 후 본투표 시작</p>
     ${makeVoteRows(votes)}
   `;
   overlay.classList.remove('hidden');
-  setTimeout(() => overlay.classList.add('hidden'), 3000);
+  setTimeout(() => overlay.classList.add('hidden'), 10000);
 });
 
 /* 본투표 1차 결과 (3초 후 2차 자동 시작) */
