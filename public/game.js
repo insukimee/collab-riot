@@ -566,9 +566,20 @@ function toggleMic() {
   });
 }
 
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+  ]
+};
+
 function createPeer(targetId, initiator) {
   if (!localStream) return;
-  const peer = new SimplePeer({ initiator, stream: localStream, trickle: true });
+  if (peers[targetId]) return;
+  const peer = new SimplePeer({ initiator, stream: localStream, trickle: true, config: ICE_SERVERS });
   peer.on('signal', sig => socket.emit('signal', { to: targetId, signal: sig }));
   peer.on('stream', remoteStream => {
     const audio = new Audio();
@@ -586,7 +597,14 @@ socket.on('signal', ({ from, signal }) => {
     peers[from].signal(signal);
   } else {
     createPeer(from, false);
-    setTimeout(() => { if (peers[from]) peers[from].signal(signal); }, 100);
+    setTimeout(() => { if (peers[from]) peers[from].signal(signal); }, 200);
+  }
+});
+
+// 새 플레이어 입장 시 마이크 켜져 있으면 자동 연결
+socket.on('playerJoined', ({ playerId }) => {
+  if (micOn && localStream && playerId !== socket.id && !peers[playerId]) {
+    setTimeout(() => createPeer(playerId, true), 500);
   }
 });
 

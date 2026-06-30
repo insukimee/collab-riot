@@ -148,6 +148,7 @@ io.on('connection', (socket) => {
     socket.emit('joinedRoom', { roomId });
     io.to(roomId).emit('gameState', getRoomState(roomId));
     io.to(roomId).emit('chat', { system: true, text: `🎮 ${playerName}님이 입장했습니다!` });
+    io.to(roomId).emit('playerJoined', { playerId: socket.id });
   });
 
   socket.on('startGame', () => {
