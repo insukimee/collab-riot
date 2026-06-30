@@ -618,6 +618,25 @@ function sendChat() {
   input.value = '';
 }
 
+/* ─── 대기실 채팅 ─── */
+function sendRoomChat() {
+  const input = document.getElementById('roomChatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  socket.emit('roomChat', { text });
+  input.value = '';
+}
+
+socket.on('roomChat', ({ playerName, text }) => {
+  const box = document.getElementById('roomChatBox');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.className = 'room-chat-msg';
+  div.innerHTML = `<span class="room-chat-name">${playerName}</span><span class="room-chat-text">${text}</span>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+});
+
 /* ─── 에러 ─── */
 socket.on('error', msg => alert(msg));
 socket.on('connect', () => { myId = socket.id; });

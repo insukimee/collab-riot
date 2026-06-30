@@ -204,6 +204,12 @@ io.on('connection', (socket) => {
     io.to(socket.roomId).emit('chat', { playerName: socket.playerName, text });
   });
 
+  socket.on('roomChat', ({ text }) => {
+    const room = rooms[socket.roomId];
+    if (!room) return;
+    io.to(socket.roomId).emit('roomChat', { playerName: socket.playerName, text });
+  });
+
   socket.on('signal', ({ to, signal }) => {
     io.to(to).emit('signal', { from: socket.id, signal });
   });

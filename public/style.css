@@ -615,6 +615,44 @@ input::placeholder { color: rgba(169,180,200,.4); }
   margin-bottom: 0.75rem;
   text-transform: uppercase;
 }
+/* 대기실 채팅 */
+.room-chat-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+.room-chat-box {
+  height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .75rem;
+}
+.room-chat-msg {
+  display: flex;
+  gap: .5rem;
+  font-size: .88rem;
+  line-height: 1.5;
+}
+.room-chat-name {
+  color: var(--gold);
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.room-chat-text {
+  color: var(--text-b);
+  word-break: break-all;
+}
+
 .voice-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; min-height: 36px; }
 .voice-chip {
   align-items: center;
