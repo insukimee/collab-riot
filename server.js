@@ -316,12 +316,20 @@ function endRound(roomId) {
   const room = rooms[roomId];
   const chameleon = room.players.find(p => p.id === room.chameleonId);
 
-  io.to(roomId).emit('roundEnd', {
-    chameleonName: chameleon?.name,
-    word: room.word,
-    scores: room.players.map(p => ({ name: p.name, score: p.score }))
-      .sort((a, b) => b.score - a.score),
-    isGameOver: room.round >= room.maxRounds,
+  // 각 플레이어에게 상대방 단어 공개
+  room.players.forEach(p => {
+    const pIsSpy = p.id === room.chameleonId;
+    io.to(p.id).emit('roundEnd', {
+      chameleonName: chameleon?.name,
+      citizenWord: room.word,
+      spyWord: room.spyWord,
+      myRole: pIsSpy ? 'spy' : 'citizen',
+      scores: room.players.map(q => ({ name: q.name, score: q.score }))
+        .sort((a, b) => b.score - a.score),
+      isGameOver: room.round >= room.maxRounds,
+      currentRound: room.round,
+      maxRounds: room.maxRounds,
+    });
   });
 
   if (room.round >= room.maxRounds) {

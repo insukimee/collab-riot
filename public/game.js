@@ -463,15 +463,35 @@ socket.on('chameleonGuessResult', ({ guess, correct, actualWord, chameleonName }
 });
 
 /* ─── 라운드 종료 ─── */
-socket.on('roundEnd', ({ chameleonName, word, scores }) => {
+socket.on('roundEnd', ({ chameleonName, citizenWord, spyWord, myRole, scores, isGameOver, currentRound, maxRounds }) => {
   setTimeout(() => {
     const overlay = document.getElementById('resultOverlay');
+    const amSpy = myRole === 'spy';
+    const revealMsg = amSpy
+      ? `<p style="color:#ff6b6b;font-weight:700;margin:.25rem 0 0">나는 라이엇이었다!</p><p style="color:var(--text);font-size:.85rem;margin:.25rem 0 .5rem">시민들의 단어는 <strong style="color:var(--gold)">${citizenWord}</strong> 였습니다</p>`
+      : `<p style="color:#4ecdc4;font-weight:700;margin:.25rem 0 0">나는 시민이었다!</p><p style="color:var(--text);font-size:.85rem;margin:.25rem 0 .5rem">라이엇의 단어는 <strong style="color:#ff6b6b">${spyWord}</strong> 였습니다</p>`;
+
     document.getElementById('resultContent').innerHTML = `
-      <h2 style="color:var(--gold)">⏱ 라운드 종료</h2>
-      <p style="color:var(--text);margin:.5rem 0 1rem">
-        라이엇: <strong style="color:var(--text-b)">${chameleonName}</strong> &nbsp;|&nbsp;
-        키워드: <strong style="color:var(--gold)">${word}</strong>
-      </p>
+      <h2 style="color:var(--gold)">라운드 ${currentRound} / ${maxRounds} 종료</h2>
+      <div style="background:rgba(255,255,255,.05);border:1px solid rgba(200,155,60,.3);border-radius:10px;padding:.75rem 1rem;margin:.75rem 0 1rem">
+        <div style="display:flex;justify-content:center;gap:2rem;margin-bottom:.5rem">
+          <div style="text-align:center">
+            <div style="font-size:.7rem;letter-spacing:1.5px;color:#4ecdc4;margin-bottom:.2rem">시민 단어</div>
+            <div style="font-size:1.2rem;font-weight:700;color:var(--gold)">${citizenWord}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:.7rem;letter-spacing:1.5px;color:#ff6b6b;margin-bottom:.2rem">라이엇 단어</div>
+            <div style="font-size:1.2rem;font-weight:700;color:#ff6b6b">${spyWord}</div>
+          </div>
+        </div>
+        <div style="border-top:1px solid rgba(255,255,255,.1);padding-top:.5rem;text-align:center">
+          <span style="font-size:.8rem;color:var(--text)">라이엇: </span>
+          <strong style="color:#ff6b6b">${chameleonName}</strong>
+        </div>
+      </div>
+      <div style="background:rgba(${amSpy ? '255,107,107' : '78,205,196'},.1);border:1px solid rgba(${amSpy ? '255,107,107' : '78,205,196'},.3);border-radius:8px;padding:.6rem 1rem;margin-bottom:1rem">
+        ${revealMsg}
+      </div>
       <h3 style="margin-bottom:.75rem;font-size:.85rem;letter-spacing:2px;color:var(--gold)">SCOREBOARD</h3>
       ${scores.map((s, i) => `
         <div class="result-score-row">
@@ -480,10 +500,12 @@ socket.on('roundEnd', ({ chameleonName, word, scores }) => {
           <span class="rs-pts">${s.score}점</span>
         </div>
       `).join('')}
-      <p style="color:var(--text);margin-top:1rem;font-size:.82rem">잠시 후 대기실로 돌아갑니다...</p>
+      ${isGameOver ? '' : '<p style="color:var(--text);margin-top:1rem;font-size:.82rem">잠시 후 대기실로 돌아갑니다...</p>'}
     `;
     overlay.classList.remove('hidden');
-    setTimeout(() => overlay.classList.add('hidden'), 5000);
+    if (!isGameOver) {
+      setTimeout(() => overlay.classList.add('hidden'), 7000);
+    }
   }, 600);
 });
 
