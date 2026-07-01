@@ -324,7 +324,7 @@ function startVoting(roomId) {
   room.phase = 'voting';
   room.votes = {};
   io.to(roomId).emit('gameState', getRoomState(roomId));
-  io.to(roomId).emit('chat', { system: true, text: '🗳️ 본투표! 라이엇이 누구인지 지목하세요.' });
+  io.to(roomId).emit('chat', { system: true, text: '🗳️ 본투표! 라이어가 누구인지 지목하세요.' });
 }
 
 function resolveVoting(roomId) {
@@ -350,12 +350,12 @@ function resolveVoting(roomId) {
   if (isChameleon) {
     room.phase = 'chameleonGuess';
     io.to(roomId).emit('gameState', getRoomState(roomId));
-    io.to(roomId).emit('chat', { system: true, text: `🎯 라이엇 ${eliminatedPlayer?.name} 발각! 단어를 맞추면 역전!` });
+    io.to(roomId).emit('chat', { system: true, text: `🎯 라이어 ${eliminatedPlayer?.name} 발각! 단어를 맞추면 역전!` });
     io.to(room.chameleonId).emit('guessTurn');
   } else {
     if (eliminated) {
       room.players.find(p => p.id === room.chameleonId).score += 2;
-      io.to(roomId).emit('chat', { system: true, text: `🦎 라이엇 생존! +2점` });
+      io.to(roomId).emit('chat', { system: true, text: `🦎 라이어 생존! +2점` });
     } else {
       room.players.find(p => p.id === room.chameleonId).score += 1;
     }

@@ -14,14 +14,14 @@ const AVATARS = ['🐉','⚔️','🛡️','🏹','🔮','🗡️','💜','🌟'
 const HOST_LINES = {
   lobby:      '안녕, 시민! 준비됐어? 💥',
   waiting:    '다들 모이는 중... 기다려봐! 🎉',
-  roundStart: '라운드 시작! 라이엇를 찾아봐! 🔍',
+  roundStart: '라운드 시작! 라이어를 찾아봐! 🔍',
   yourTurn:   '어이! 지금 네 차례라고!! 빨리해! ⚡',
-  waiting2:   '흠... 저 녀석들 중에 누가 라이엇지? 🤔',
+  waiting2:   '흠... 저 녀석들 중에 누가 라이어지? 🤔',
   discussion: '자자! 목소리 높여봐! 보이스챗 GO! 🎙️',
   voting:     '투표 시간! 틀리면 안 되는데... 두근두근 💓',
-  spyCaught:  '오호? 라이엇 잡혔다! 근데 아직 역전 찬스! 😈',
-  spyWin:     '라이엇가 이겼어! 역시 내 취향이야 😂',
-  spyLose:    '라이엇 탈락! 시민들 승리! 🎊',
+  spyCaught:  '오호? 라이어 잡혔다! 근데 아직 역전 찬스! 😈',
+  spyWin:     '라이어가 이겼어! 역시 내 취향이야 😂',
+  spyLose:    '라이어 탈락! 시민들 승리! 🎊',
   gameOver:   '수고했어 시민들! 또 하자고~! 🚀',
 };
 
@@ -271,7 +271,7 @@ function renderLobby(state) {
 
 function renderGameHUD(state) {
   document.getElementById('hudRound').textContent = `ROUND ${state.round} / ${state.maxRounds}`;
-  const phaseMap = { discussion: '자유 토론', voting: '투표', chameleonGuess: '라이엇 역맞추기' };
+  const phaseMap = { discussion: '자유 토론', voting: '투표', chameleonGuess: '라이어 역맞추기' };
   document.getElementById('hudPhase').textContent = phaseMap[state.phase] || '';
   renderScores(state.players);
   renderVoiceChips(state.players, 'voiceChipsMini');
@@ -324,11 +324,11 @@ socket.on('roundStart', ({ round, maxRounds, category, isSpy: ic, myWord: word }
     <div class="role-inner">
       <div class="role-icon">${ic ? '🕵️' : '🏙️'}</div>
       <div class="role-info">
-        <div class="role-type">${ic ? '⚠️ 당신은 라이엇!' : '✅ 시민'}</div>
+        <div class="role-type">${ic ? '⚠️ 당신은 라이어!' : '✅ 시민'}</div>
         <div class="role-word">${word}</div>
         <div class="role-hint">${ic
           ? '⚠️ 이건 가짜 단어! 진짜 단어를 대화에서 유추하세요.'
-          : '이 단어로 힌트를 주며 라이엇을 찾아내세요!'
+          : '이 단어로 힌트를 주며 라이어를 찾아내세요!'
         }</div>
       </div>
     </div>
@@ -410,7 +410,7 @@ function startDeliberationUI(state) {
   setHostLine('discussion');
 
   document.getElementById('discussionTitle').textContent = '💬 자유 토론!';
-  document.getElementById('discussionSub').textContent = '힌트를 보고 1분 동안 라이엇을 찾아내세요!';
+  document.getElementById('discussionSub').textContent = '힌트를 보고 1분 동안 라이어를 찾아내세요!';
 
   // 타이머 표시
   const timerEl = document.querySelector('.timer-wrap');
@@ -443,7 +443,7 @@ function startVotingUI(state) {
   setHostLine('voting');
 
   document.getElementById('voteTitle').textContent = '🗳️ 본투표';
-  document.getElementById('voteSubtitle').textContent = '라이엇이 누구인지 지목하세요!';
+  document.getElementById('voteSubtitle').textContent = '라이어가 누구인지 지목하세요!';
 
   const src = state || gameState;
   const others = (src?.players || []).filter(p => p.id !== socket.id);
@@ -498,7 +498,7 @@ socket.on('voteResult', ({ eliminated, isChameleon: ic, votes }) => {
   if (ic) setHostLine('spyCaught');
 });
 
-/* ─── 라이엇 역맞추기 ─── */
+/* ─── 라이어 역맞추기 ─── */
 function startGuessUI() {
   ['phaseDiscussion','phaseVoting'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
   document.getElementById('phaseGuess').classList.remove('hidden');
@@ -529,8 +529,8 @@ socket.on('chameleonGuessResult', ({ guess, correct, actualWord, chameleonName }
   const overlay = document.getElementById('resultOverlay');
   document.getElementById('resultContent').innerHTML = `
     <div style="font-size:3rem;margin-bottom:.5rem">${correct ? '🎉' : '💀'}</div>
-    <h2>${correct ? '역전! 라이엇 승리!' : '탈락! 시민 승리!'}</h2>
-    <p style="margin:.75rem 0;color:var(--text)">라이엇: <strong style="color:var(--text-b)">${chameleonName}</strong></p>
+    <h2>${correct ? '역전! 라이어 승리!' : '탈락! 시민 승리!'}</h2>
+    <p style="margin:.75rem 0;color:var(--text)">라이어: <strong style="color:var(--text-b)">${chameleonName}</strong></p>
     <p>추측: <strong>${guess}</strong><br>
     정답: <strong style="color:var(--gold)">${actualWord}</strong></p>
   `;
@@ -548,8 +548,8 @@ socket.on('roundEnd', ({ chameleonName, citizenWord, spyWord, myRole, scores, is
   overlay.classList.remove('hidden');
   (() => {
     const revealMsg = amSpy
-      ? `<p style="color:#ff6b6b;font-weight:700;margin:.25rem 0 0">나는 라이엇이었다!</p><p style="color:var(--text);font-size:.85rem;margin:.25rem 0 .5rem">시민들의 단어는 <strong style="color:var(--gold)">${citizenWord}</strong> 였습니다</p>`
-      : `<p style="color:#4ecdc4;font-weight:700;margin:.25rem 0 0">나는 시민이었다!</p><p style="color:var(--text);font-size:.85rem;margin:.25rem 0 .5rem">라이엇의 단어는 <strong style="color:#ff6b6b">${spyWord}</strong> 였습니다</p>`;
+      ? `<p style="color:#ff6b6b;font-weight:700;margin:.25rem 0 0">나는 라이어였다!</p><p style="color:var(--text);font-size:.85rem;margin:.25rem 0 .5rem">시민들의 단어는 <strong style="color:var(--gold)">${citizenWord}</strong> 였습니다</p>`
+      : `<p style="color:#4ecdc4;font-weight:700;margin:.25rem 0 0">나는 시민이었다!</p><p style="color:var(--text);font-size:.85rem;margin:.25rem 0 .5rem">라이어의 단어는 <strong style="color:#ff6b6b">${spyWord}</strong> 였습니다</p>`;
 
     document.getElementById('resultContent').innerHTML = `
       <h2 style="color:var(--gold)">라운드 ${currentRound} / ${maxRounds} 종료</h2>
@@ -560,12 +560,12 @@ socket.on('roundEnd', ({ chameleonName, citizenWord, spyWord, myRole, scores, is
             <div style="font-size:1.2rem;font-weight:700;color:var(--gold)">${citizenWord}</div>
           </div>
           <div style="text-align:center">
-            <div style="font-size:.7rem;letter-spacing:1.5px;color:#ff6b6b;margin-bottom:.2rem">라이엇 단어</div>
+            <div style="font-size:.7rem;letter-spacing:1.5px;color:#ff6b6b;margin-bottom:.2rem">라이어 단어</div>
             <div style="font-size:1.2rem;font-weight:700;color:#ff6b6b">${spyWord}</div>
           </div>
         </div>
         <div style="border-top:1px solid rgba(255,255,255,.1);padding-top:.5rem;text-align:center">
-          <span style="font-size:.8rem;color:var(--text)">라이엇: </span>
+          <span style="font-size:.8rem;color:var(--text)">라이어: </span>
           <strong style="color:#ff6b6b">${chameleonName}</strong>
         </div>
       </div>
